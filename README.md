@@ -12,7 +12,7 @@ It supports checking the following items:
 * UPS information (maybe)
 
 ## Based on
-This plugin is based on plugin by deegan199. It can be found [here.](https://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/Others/Synology-status/details)
+This plugin is a modified version of a plugin by deegan199. It can be found [here.](https://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/Others/Synology-status/details)
 
 ### Changes From Original
 This version supports volume usage on DSM 6.2. Also, it checks readings by type,
