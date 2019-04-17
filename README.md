@@ -17,12 +17,12 @@ This plugin is based on plugin by deegan199. It can be found [here.](https://exc
 This version supports volume usage on DSM 6.2. Also, it checks readings by type,
 rather then checking everything at once. This allows for splitting checks into
 different services in Nagios. Look below for more information. As a part of this
-change, the verbose option was removed, and it is verbose by default. Also, the
-UPS option was removed and added as a check type instead (hasn't been tested with a UPS).
+change, the verbose option was removed and it is now always verbose. Also, the
+UPS option was removed and added as a check type instead (but it hasn't been tested with a UPS).
 
 
 ## Requirements
-snmpwalk and smnpget need to be installed. Also, the SNMP agent on the NAS has to be activated.
+snmpwalk and snmpget need to be installed. Also, the SNMP agent on the NAS has to be activated.
 
 ## Usage
 ```
@@ -60,7 +60,7 @@ define command{
 }
 ```
 
-### Services Definition
+### Service Definitions
 ```
 define service {
 	use	                   generic-service
