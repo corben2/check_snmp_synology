@@ -22,7 +22,7 @@ UPS option was removed and added as a check type instead (hasn't been tested wit
 
 
 ## Requirements
-The SNMP agent on the NAS has to be activated.
+snmpwalk and smnpget need to be installed. Also, the SNMP agent on the NAS has to be activated.
 
 ## Usage
 ```
@@ -49,4 +49,79 @@ examples:	./check_snmp_synology -u admin -p 1234 -h nas.intranet -t temperature
 	     	./check_snmp_synology -u admin -p 1234 -h nas.intranet -v -t system
 		./check_snmp_synology -2 public -h nas.intranet -t power
 		./check_snmp_synology -2 public -h nas.intranet:10161 -t ups
+```
+
+## Nagios Configuration Examples
+### Command Definition
+```
+define command{
+        command_name    synology_check
+        command_line    /usr/lib64/nagios/plugins/check_snmp_synology -2 public -h $HOSTADDRESS$ -t $ARG1$
+}
+```
+
+### Services Definition
+```
+define service {
+	use	                   generic-service
+	hostgroup_name		   synology
+	service_description	   System
+	check_command		   synology_check!system
+	notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+	use	                   generic-service
+	hostgroup_name		   synology
+	service_description	   Version
+	check_command		   synology_check!version
+	notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+	use	                   generic-service
+	hostgroup_name		   synology
+	service_description	   Power
+	check_command		   synology_check!power
+	notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+	use	                   generic-service
+	hostgroup_name		   synology
+	service_description	   Fans
+	check_command		   synology_check!fan
+	notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+	use	                   generic-service
+	hostgroup_name		   synology
+	service_description	   Disks
+	check_command		   synology_check!disk
+	notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+	use	                   generic-service
+	hostgroup_name		   synology
+	service_description	   RAID
+	check_command		   synology_check!raid
+	notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+        use	                   generic-service
+        hostgroup_name		   synology
+        service_description	   UPS
+        check_command		   synology_check!ups
+        notifications_enabled      1
+        check_interval             5
+}
 ```
