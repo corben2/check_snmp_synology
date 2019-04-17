@@ -1,5 +1,6 @@
 # synology-nagios-plugin
 A simple Nagios Plugin which checks the health of a Synology NAS
+
 It supports checking the following items:
 * System status
 * Power status
@@ -8,7 +9,7 @@ It supports checking the following items:
 * RAID (Volumes) status
 * DSM version and update status
 * System temperature
-* UPS information
+* UPS information (maybe)
 
 ## Based on
 This plugin is based on plugin by deegan199. It can be found [here.](https://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/Others/Synology-status/details)
