@@ -1,11 +1,12 @@
 #!/bin/bash
 # check_snmp_synology for nagios
-# Version: 2.6
+# Version: 2.7
 # 07.12.2016  Nicolas Ordonez, Switzerland
 # Thanks to contributors:
 # - Tobias Schenke
 # Modified By:
 # 04.17.2019  Corben Eastman
+# 19.01.2021  Fabian Ihle
 #---------------------------------------------------
 # this plugin checks the health of your Synology NAS
 # - System status (Power, Fans)
@@ -27,6 +28,9 @@ SNMPWALK=$(which snmpwalk)
 SNMPGET=$(which snmpget)
 
 SNMPVersion="3"
+SNMPAuth="AuthPriv"
+SNMPAuthProt="SHA"
+SNMPPrivProt="AES"
 SNMPV2Community="public"
 SNMPTimeout="10"
 warningTemperature="50"
@@ -99,6 +103,9 @@ usage()
         echo "options:"
         echo "            -u [snmp username]   	Username for SNMPv3"
         echo "            -p [snmp password]   	Password for SNMPv3"
+        echo "	    	  -l [level]            Set security level (noAuthNoPriv|authNoPriv|authPriv) (default ${SNMPAuth})"
+	    echo "  		  -a [protocol]		Set authentication protocol (MD5|SHA) (default ${SNMPAuthProt})"
+	    echo "		      -x [protocol]		Set privacy protocol (DES|AES) (default ${SNMPPrivProt})"
         echo ""
         echo "            -2 [community name]	  	Use SNMPv2 (no need user/password) & define community name (ex: public)"
         echo ""
@@ -125,10 +132,13 @@ if [ "$1" == "--help" ]; then
     usage; exit 0
 fi
 
-while getopts 2:W:C:w:c:u:p:h:t:iU OPTNAME; do
+while getopts l:a:x:2:W:C:w:c:u:p:h:t:iU OPTNAME; do
         case "$OPTNAME" in
 	u)	SNMPUser="$OPTARG";;
         p)	SNMPPassword="$OPTARG";;
+        l)	SNMPAuth="$OPTARG";;
+	    a)	SNMPAuthProt="$OPTARG";;
+	    x)	SNMPPrivProt="$OPTARG";;
         h)	hostname="$OPTARG";;
 	2)	SNMPVersion="2"
 		SNMPV2Community="$OPTARG";;
@@ -179,7 +189,7 @@ else
     if [ "$SNMPVersion" = "2" ] ; then
 	SNMPArgs=" -OQne -v 2c -c $SNMPV2Community -t $SNMPTimeout"
     else
-	SNMPArgs=" -OQne -v 3 -u $SNMPUser -A $SNMPPassword -l authNoPriv -a MD5 -t $SNMPTimeout"
+	SNMPArgs=" -OQne -v 3 -u $SNMPUser -A $SNMPPassword -x ${SNMPPrivProt} -X $SNMPPassword -l ${SNMPAuth} -a ${SNMPAuthProt} -t $SNMPTimeout"
 	if [ ${#SNMPPassword} -lt "8" ] ; then
 	    echo "snmpwalk:  (The supplied password is too short.)"
 	    exit 1
