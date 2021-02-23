@@ -6,6 +6,7 @@
 # - Tobias Schenke
 # Modified By:
 # 04.17.2019  Corben Eastman
+# 2021.02.23  Christopher McAvaney
 #---------------------------------------------------
 # this plugin checks the health of your Synology NAS
 # - System status (Power, Fans)
@@ -359,7 +360,10 @@ else
             # in this case the former grep failed with more then one result.
             # modified script to look for a line with '= "/volume1"' instead of 'volume1'
             #storageID[$i]=$(echo "$syno_diskspace" | grep ${storageName[$i]} | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
-            storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
+#            storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
+			# Modified by Christopher McAvaney
+			# Modified script to exclude any "/volume1/" anything (i.e. if the volume has a trailing slash, then it must be docker or other "sub" components of the volume - used sed as the output of snmpwalk in the variable in bash was behaving very strangly.  Some strange control character or something.
+            storageID[$i]=$(echo "$syno_diskspace" | sed -n "s/\(.*\) = \(\"\?\/${storageName[$i]}\"\?$\)/\1/pi" | rev | cut -d "." -f1 | rev)
 
             if [ "${storageID[$i]}" != "" ] ; then
                 storageSize[$i]=$(echo "$syno_diskspace" | grep "$OID_StorageSize.${storageID[$i]}" | cut -d "=" -f2 )
