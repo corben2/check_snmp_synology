@@ -6,6 +6,7 @@
 # - Tobias Schenke
 # Modified By:
 # 04.17.2019  Corben Eastman
+# 2021.02.23  Christopher McAvaney
 #---------------------------------------------------
 # this plugin checks the health of your Synology NAS
 # - System status (Power, Fans)
