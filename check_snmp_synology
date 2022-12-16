@@ -366,6 +366,16 @@ else
         esac
     done
 
+    if [ "$healthCriticalStatus" = "1" ] ; then
+	    echo "❌ CRITICAL - $healthString"
+    fi
+    if [ "$healthWarningStatus" = "1" ] ; then
+	    echo "⚠️ WARNING - $healthString"
+    fi
+    if [ "$healthCriticalStatus" = "0" ] && [ "$healthWarningStatus" = "0" ] ; then
+	    echo "✅ OK - $healthString is in good health"
+    fi
+
     if [ "$verbose" = "yes" ] ; then    
         echo "Synology model:		$model" ; 
         echo "Synology s/n:		$serialNumber" ;
@@ -407,16 +417,5 @@ else
 	echo "";
     fi
 
-    if [ "$healthCriticalStatus" = "1" ] ; then
-	echo "CRITICAL - $healthString"
-	exit 2
-    fi
-    if [ "$healthWarningStatus" = "1" ] ; then
-	echo "WARNING - $healthString"
-	exit 1
-    fi
-    if [ "$healthCriticalStatus" = "0" ] && [ "$healthWarningStatus" = "0" ] ; then
-	echo "OK - $healthString is in good health"
-	exit 0
-    fi
+    exit $((healthWarningStatus + healthCriticalStatus))
 fi
