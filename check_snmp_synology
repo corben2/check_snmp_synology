@@ -374,7 +374,8 @@ else
             # in this case the former grep failed with more then one result.
             # modified script to look for a line with '= "/volume1"' instead of 'volume1'
             #storageID[$i]=$(echo "$syno_diskspace" | grep ${storageName[$i]} | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
-            storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
+            #storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
+	    storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?$" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
 
             if [ "${storageID[$i]}" != "" ] ; then
                 storageSize[$i]=$(echo "$syno_diskspace" | grep "$OID_StorageSize.${storageID[$i]}" | cut -d "=" -f2 )
