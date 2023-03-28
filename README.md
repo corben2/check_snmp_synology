@@ -10,6 +10,7 @@ It supports checking the following items:
 * DSM version and update status
 * System temperature
 * UPS information (maybe)
+* Cluster HA checks (against the HA IP address)
 
 ## Based on
 This plugin is a modified version of a plugin by deegan199. It can be found [here.](https://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/Others/Synology-status/details)
@@ -122,6 +123,15 @@ define service {
         hostgroup_name		   synology
         service_description	   UPS
         check_command		   synology_check!ups
+        notifications_enabled      1
+        check_interval             5
+}
+
+define service {
+        use	                   generic-service
+        hostgroup_name		   synology
+        service_description	   HA
+        check_command		   synology_check!ha
         notifications_enabled      1
         check_interval             5
 }
