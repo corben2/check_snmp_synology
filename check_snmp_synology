@@ -5,7 +5,7 @@
 # Thanks to contributors:
 # - Tobias Schenke
 # Modified By:
-# 04.17.2019  Corben Eastman
+# 27.03.2023  Thomas Milz
 #---------------------------------------------------
 # this plugin checks the health of your Synology NAS
 # - System status (Power, Fans)
@@ -15,8 +15,9 @@
 # - Temperature Warning and Critical
 # - UPS information
 # - Storage percentage of use
+#   Clster HA checks
 #
-# Tested with DSM 6.2
+# Tested with DSM 7.1
 #---------------------------------------------------
 # Based on http://ukdl.synology.com/download/Document/MIBGuide/Synology_DiskStation_MIB_Guide.pdf
 #---------------------------------------------------
@@ -38,7 +39,7 @@ healthWarningStatus=0
 healthCriticalStatus=0
 healthString=""
 checkDSMUpdate="yes"
-allowedTypes=(system version temperature power fan disk raid ups)
+allowedTypes=(system version temperature power fan disk raid ups ha)
 system=(model serialNumber systemStatus)
 version=(DSMVersion DSMUpgradeAvailable)
 temperature=(temperature)
@@ -47,7 +48,9 @@ fan=(systemFanStatus CPUFanStatus)
 disk=(disk disk2)
 raid=(RAID)
 ups=(UpsModel UpsSN UpsStatus UpsLoad UpsBatteryCharge UpsBatteryChargeWarning)
+ha=(activeNodeName passiveNodeName clusterAutoFailover clusterName clusterStatus heartbeatStatus heartbeatTxRate heartbeatLatency)
 checks=()
+clusterSav="/var/spool/icinga2/synology"
 
 
 #OID declarations
@@ -92,6 +95,18 @@ OID_UpsStatus="1.3.6.1.4.1.6574.4.2.1.0"
 OID_UpsLoad="1.3.6.1.4.1.6574.4.2.12.1.0"
 OID_UpsBatteryCharge="1.3.6.1.4.1.6574.4.3.1.1.0"
 OID_UpsBatteryChargeWarning="1.3.6.1.4.1.6574.4.3.1.4.0"
+
+#ha
+OID_HA="1.3.6.1.4.1.6574.106"
+OID_activeNodeName="1.3.6.1.4.1.6574.106.1.0"
+OID_passiveNodeName="1.3.6.1.4.1.6574.106.2.0"
+OID_clusterAutoFailover="1.3.6.1.4.1.6574.106.3.0"
+OID_clusterName="1.3.6.1.4.1.6574.106.4.0"
+OID_clusterStatus="1.3.6.1.4.1.6574.106.5.0"
+OID_heartbeatStatus="1.3.6.1.4.1.6574.106.6.0"
+OID_heartbeatTxRate="1.3.6.1.4.1.6574.106.7.0"
+OID_heartbeatLatency="1.3.6.1.4.1.6574.106.8.0"
+
 
 usage()
 {
@@ -359,7 +374,8 @@ else
             # in this case the former grep failed with more then one result.
             # modified script to look for a line with '= "/volume1"' instead of 'volume1'
             #storageID[$i]=$(echo "$syno_diskspace" | grep ${storageName[$i]} | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
-            storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
+            #storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
+	    storageID[$i]=$(echo "$syno_diskspace" | grep -i "= \"\?/${storageName[$i]}\"\?$" | cut -d "=" -f1 | rev | cut -d "." -f1 | rev)
 
             if [ "${storageID[$i]}" != "" ] ; then
                 storageSize[$i]=$(echo "$syno_diskspace" | grep "$OID_StorageSize.${storageID[$i]}" | cut -d "=" -f2 )
@@ -398,6 +414,94 @@ else
         done
     fi
 
+
+	#Check ha status
+	if [ "$checkType" = "ha" ] ; then
+		HAactiveNodeName=$(echo "$syno" | grep $OID_activeNodeName | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//' | tr -d '"')
+		HApassiveNodeName=$(echo "$syno" | grep $OID_passiveNodeName | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//' | tr -d '"')
+		HAclusterAutoFailover=$(echo "$syno" | grep $OID_clusterAutoFailover | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//')
+		HAclusterName=$(echo "$syno" | grep $OID_clusterName | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//' | tr -d '"')
+		HAclusterStatus=$(echo "$syno" | grep $OID_clusterStatus | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//')
+		HAheartbeatStatus=$(echo "$syno" | grep $OID_heartbeatStatus | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//')
+		#HAheartbeatTxRate=$(echo "$syno" | grep $OID_heartbeatTxRate | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//')
+		#HAheartbeatLatency=$(echo "$syno" | grep $OID_heartbeatLatency | cut -d "=" -f2 | sed 's/^[ \t]*//;s/[ \t]*$//')
+		
+		healthCriticalStatus=0
+		healthWarningStatus=0
+        healthString="Cluster $HAclusterName"	
+		
+		# check if the active node has switched
+		if [[ ! "${HAactiveNodeName[@]}" =~ "No Such Instance " ]] ; then
+			LastHAactiveNodeName="-"
+			clusterFile=$(printf '%s_%s\n' $clusterSav $hostname)
+			if [[ -f "$clusterFile" ]]; then
+				. $clusterFile
+				LastFailovers=($(echo $LastFailovers | tr "," "\n"))
+			fi
+			
+			if [[ "$LastHAactiveNodeName" != "-" ]]; then
+				if [[ "$LastHAactiveNodeName" != "$HAactiveNodeName" ]]; then
+					healthWarningStatus=1
+                    healthString="Cluster active node has switched"					
+					LastFailovers+=($(date +%s))
+				fi
+			fi
+			
+			oneDayAgo=$(date +%s -d "1 day ago")
+			LastFailovers_tmp=""
+			LastFailovers_count=0
+			for i in "${LastFailovers[@]}"; do
+				if [ "$i" -gt "$oneDayAgo" ] ; then
+					LastFailovers_tmp+=($i)
+					((LastFailovers_count++))
+				fi
+			done
+			printf -v LastFailovers '%s,' "${LastFailovers_tmp[@]}"
+			LastFailovers=$(echo $LastFailovers | sed 's/^,//;s/,$//')
+			
+			echo "LastHAactiveNodeName=$HAactiveNodeName"      >  $clusterFile
+			echo "LastHApassiveNodeName=$HApassiveNodeName"    >> $clusterFile
+			if [ "$LastFailovers" != "" ]; then
+				echo "LastFailovers=$LastFailovers"            >> $clusterFile
+			fi
+			
+			if [ $LastFailovers_count -gt 1 ]; then
+				healthWarningStatus=1
+				healthString="Cluster active node has $LastFailovers_count times switched in the last 24 hours!"
+			fi
+			
+        else		
+			healthString="This is not a cluster address!"
+            healthCriticalStatus=1
+        fi
+		
+		# check if clusterAutoFailover works (teoretical)
+		if [ "$HAclusterAutoFailover" != "1" ]; then
+			healthWarningStatus=1
+			healthString="Cluster can not failover (clusterAutoFailover) !"
+		fi
+		
+		# check HAheartbeatStatus
+		case $HAheartbeatStatus in
+			"0")  ;;
+			"1")  healthWarningStatus=1;   healthString="Some information about heartbeat is not available.";;
+			"2")  healthCriticalStatus=1;  healthString="The cluster loses connection to passive server through heartbeat interface, or it is currently in split-brain mode!";;
+			"3")  healthWarningStatus=1;   healthString="The High-Availability cluster has no passive server.";;
+			  *)  healthCriticalStatus=1;  healthString="The cluster ha a unknown heartbeat state and should be resolved as soon as possible!";;
+		esac
+		
+		# check clusterStatus
+		case $HAclusterStatus in
+			"0")  ;;
+			"1")  healthWarningStatus=1;   healthString="The cluster has something went wrong.";;
+			"2")  healthCriticalStatus=1;  healthString="The cluster is in danger state and should be resolved as soon as possible!";;
+			"3")  healthWarningStatus=1;   healthString="The cluster is upgrading.";;
+			"4")  healthWarningStatus=1;   healthString="The cluster is undergoing some operation.";;
+			  *)  healthCriticalStatus=1;  healthString="The cluster is unknown state and should be resolved as soon as possible!";;
+		esac			
+    fi
+	
+
     case $checkType in
         "system")         echo "Synology model:		$model" ;
                           echo "Synology s/n:		$serialNumber" ;
@@ -405,7 +509,7 @@ else
         "version")        echo "DSM Version:		$DSMVersion" ;
                           echo "DSM update:		 $DSMUpgradeAvailable" ;;
         "temperature")    echo "Temperature:		 $temperature" ;;
-        "power")	  echo "Power Status:		 $powerStatus" ;;
+        "power")          echo "Power Status:		 $powerStatus" ;;
         "fan")            echo "System Fan Status:	 $systemFanStatus" ;
                           echo "CPU Fan Status:		 $CPUFanStatus" ;;
         "disk")           echo "Number of disks:         $nbDisk" ;
